@@ -12,6 +12,7 @@ dependencies = [
     "uvicorn>=0.34",
     "sqlalchemy>=2.0",
     "python-dotenv>=1.0",
+    "directorymap>=0.3.2",
 ]
 
 [build-system]

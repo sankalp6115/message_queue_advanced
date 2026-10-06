@@ -1,5 +1,5 @@
-from database.database import SessionLocal
-from models.model import Job
+from app.database.database import SessionLocal
+from app.models.model import Job
 from datetime import datetime, timezone, timedelta
 import time
 import json

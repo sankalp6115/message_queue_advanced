@@ -2,8 +2,10 @@ from fastapi import APIRouter, HTTPException
 import json
 import uuid
 
-from models.model import Job, JobRequest, Base
-from database.database import SessionLocal, engine
+from app.models.model import Base, Job
+from app.schemas.schema import JobRequest
+
+from app.database.database import SessionLocal, engine
 
 Base.metadata.create_all(bind=engine)
 
@@ -41,7 +43,7 @@ def post_message(request: JobRequest):
 
     job_id = str(uuid.uuid4())
     job_type = request.type
-    job_payload = json.dumps(request.payload)
+    job_payload = json.dumps(request.payload.model_dump())
     job_status = "pending"
     
     job = Job(
