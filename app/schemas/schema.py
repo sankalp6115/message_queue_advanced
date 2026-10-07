@@ -1,5 +1,6 @@
-from typing import Literal, Annotated, Union
-from pydantic import BaseModel, Field, model_validator
+from typing import Literal, Annotated, Union, Any
+from pydantic import BaseModel, Field, model_validator, ConfigDict
+from datetime import datetime
 
 class SleepPayload(BaseModel):  
     seconds: int = Field(ge=0,le=300)
@@ -36,3 +37,19 @@ JobRequest = Annotated[
 #type = "sleep"        → FastAPI validates SleepPayload
 #type = "calculation"  → FastAPI validates CalculationPayload
 #any other type        → FastAPI rejects the request
+
+# Job Response
+
+JobStatus = Literal["pending","running","failed","completed"]
+
+class JobResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    type: str
+    payload: dict[str, Any]
+    status: JobStatus
+    result: dict[str, Any] | None
+    error: str | None
+    created_at: datetime
+    updated_at: datetime
