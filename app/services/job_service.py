@@ -4,7 +4,6 @@ from sqlalchemy.orm import Session
 from app.models.model import Job
 from app.schemas.schema import JobRequest, JobResponse
 
-
 def create_job(db: Session, request: JobRequest) -> Job:
     job = Job(
         id=str(uuid.uuid4()),

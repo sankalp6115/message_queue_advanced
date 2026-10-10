@@ -1,4 +1,4 @@
-from typing import Literal, Annotated, Union, Any
+from typing import Annotated, Any, Literal, Union
 from pydantic import BaseModel, Field, model_validator, ConfigDict
 from datetime import datetime
 
@@ -14,7 +14,7 @@ class CalculationPayload(BaseModel):
     # model validator used for custom validation logic for a complete model
     @model_validator(mode="after")
     def validate_exponent(self):
-        if self.operator == "**" and not self.second <= 8:
+        if self.operator == "**" and not 0 <= self.second <= 8:
             raise ValueError(
                 "For Exponentiation, power must be between 0 and 8"
             )
@@ -33,12 +33,6 @@ JobRequest = Annotated[
     Union[SleepJobRequest,CalculationJobRequest],
     Field(discriminator="type"),
 ]
-
-#type = "sleep"        → FastAPI validates SleepPayload
-#type = "calculation"  → FastAPI validates CalculationPayload
-#any other type        → FastAPI rejects the request
-
-# Job Response
 
 JobStatus = Literal["pending","running","failed","completed"]
 

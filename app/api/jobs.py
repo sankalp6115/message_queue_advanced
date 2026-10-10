@@ -19,8 +19,7 @@ def enqueue_job(
 
 @router.get("", response_model=list[JobResponse])
 def get_all_jobs(db: Session = Depends(get_db)):
-    jobs = list_jobs(db)
-    return [to_job_response(job) for job in jobs]
+    return [to_job_response(job) for job in list_jobs(db)]
 
 
 @router.get("/{job_id}",response_model=JobResponse)

@@ -1,26 +1,13 @@
-from app.database.database import SessionLocal
-from app.models.model import Job
 from datetime import datetime, timezone, timedelta
+from app.workers.recovery import recover_stale_jobs
 import time
 import json
 
-
-# def get_pending_job():
-#     db = SessionLocal()
-#     job = db.query(Job).filter(Job.status == 'pending').first()
-#     db.close()
-    
-#     return job
-
-
-# def get_all_pending_jobs():
-#     db = SessionLocal()
-#     jobs = db.query(Job).filter(Job.status == 'pending').all()
-#     return jobs    
-#     db.close()
+from app.database.database import SessionLocal
+from app.models.model import Job
+from app.workers.handlers import task_executor
 
 def claim_next_job(db:SessionLocal):
-    """Find a pending job and atomically claim it."""
     candidate = db.query(Job).filter(Job.status == 'pending').first()
     if not candidate:
         return None
@@ -39,76 +26,14 @@ def claim_next_job(db:SessionLocal):
     else:
         return None
 
-
-def recover_stale_jobs():
-    db = SessionLocal()
-    
-    cutoff_time = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=60)
-    
-    try:
-        stale_jobs = db.query(Job).filter(
-            Job.status == 'running', 
-            Job.updated_at < cutoff_time
-        ).all()
-
-        for job in stale_jobs:
-            print(f"Recovering jobID{job.id}")
-            job.status = 'pending'
-
-        if stale_jobs:
-            db.commit()
-
-        return stale_jobs
-
-    finally:
-        db.close()
-
-def process_job(db,job):
+def process_job(db:SessionLocal,job:Job):
     print(f"Executing {job.id}")
-    
-    # status update to running
-    job.status = "running"
-    db.commit()
 
     try:
         job_payload = json.loads(job.payload)
-
-        if job.type == "sleep":
-            seconds = int(job_payload["seconds"])
-            time.sleep(seconds)
-            job.result = json.dumps({
-                "result": f"Slept for {seconds}s"
-            })
-            result = f"Slept for {seconds}s"
-
-
-        elif job.type == "calculation":
-            first = job_payload["first"]
-            second = job_payload["second"]
-            operator = job_payload["operator"]
-
-            if operator == "+":
-                result = int(first) + int(second)
-            elif operator == "-":
-                result = int(first) - int(second)
-            elif operator == "*":
-                result = int(first) * int(second)
-            elif operator == "/":
-                result = int(first) / int(second)
-            elif operator == "//":
-                result = int(first) // int(second)
-            elif operator == "**":
-                result = int(first) ** int(second)
-            else:
-                raise ValueError(f"Unsupported Operator")
-
-            # simulate long task
-            # time.sleep(2)
-            job.result = json.dumps({
-                "result": str(result)
-            })
-
+        result = task_executor(job,job_payload)
         job.status = "completed"
+        return result
     
     except Exception as e:
         job.status = "failed"

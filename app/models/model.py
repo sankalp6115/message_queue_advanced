@@ -1,14 +1,7 @@
-from sqlalchemy import String, Text, Integer, DateTime
+from sqlalchemy import DateTime, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
-from pydantic import BaseModel
-from datetime import datetime,timezone
+from datetime import datetime, timezone
 
-# Application models
-class JobRequest(BaseModel):
-    type: str
-    payload: dict
-
-# DB Classes and Models
 class Base(DeclarativeBase):
     pass
 
@@ -18,7 +11,7 @@ class Job(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     type: Mapped[str] = mapped_column(String, nullable=False)
     payload: Mapped[str] = mapped_column(Text, nullable=False)
-    status: Mapped[str] = mapped_column(String, default="pending")
+    status: Mapped[str] = mapped_column(String, nullable=False, default="pending")
     result: Mapped[str | None] = mapped_column(Text, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
