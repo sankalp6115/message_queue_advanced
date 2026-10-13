@@ -1,6 +1,7 @@
 from typing import Annotated, Any, Literal, Union
 from pydantic import BaseModel, Field, model_validator, ConfigDict
 from datetime import datetime
+from PIL import Image
 
 class SleepPayload(BaseModel):  
     seconds: int = Field(ge=0,le=300)
@@ -21,6 +22,12 @@ class CalculationPayload(BaseModel):
 
         return self
 
+class ImagePayload(BaseModel):
+    image_path: str
+    # operation: Literal["compress","resize","classify"]
+    operation: str = "compress"
+
+
 class SleepJobRequest(BaseModel):
     type: Literal["sleep"]
     payload: SleepPayload
@@ -29,8 +36,13 @@ class CalculationJobRequest(BaseModel):
     type: Literal["calculation"]
     payload: CalculationPayload
 
+class ImageJobRequest(BaseModel):
+    type: Literal["image"]
+    payload: ImagePayload
+
+
 JobRequest = Annotated[
-    Union[SleepJobRequest,CalculationJobRequest],
+    Union[SleepJobRequest,CalculationJobRequest,ImageJobRequest],
     Field(discriminator="type"),
 ]
 
