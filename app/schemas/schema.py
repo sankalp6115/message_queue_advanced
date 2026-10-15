@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field, model_validator, ConfigDict
 from datetime import datetime
 from PIL import Image
 
+# Payload models
 class SleepPayload(BaseModel):  
     seconds: int = Field(ge=0,le=300)
 
@@ -28,6 +29,7 @@ class ImagePayload(BaseModel):
     operation: str = "compress"
 
 
+# Request models
 class SleepJobRequest(BaseModel):
     type: Literal["sleep"]
     payload: SleepPayload
@@ -48,6 +50,7 @@ JobRequest = Annotated[
 
 JobStatus = Literal["pending","running","failed","completed"]
 
+# response model
 class JobResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -55,7 +58,7 @@ class JobResponse(BaseModel):
     type: str
     payload: dict[str, Any]
     status: JobStatus
-    result: dict[str, Any] | None
-    error: str | None
+    result: dict[str, Any] | list[Any] | None = None
+    error: str | None = None
     created_at: datetime
     updated_at: datetime

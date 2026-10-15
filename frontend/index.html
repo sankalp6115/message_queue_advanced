@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Message Queue Job Dashboard</title>
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --success: #10b981;
+            --danger: #ef4444;
+            --font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 2rem 1rem;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-main);
+        }
+
+        header p {
+            color: var(--text-muted);
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (min-width: 900px) {
+            .layout {
+                grid-template-columns: 1.1fr 1fr;
+            }
+        }
+
+        .forms-column {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .card h2 {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-bottom: 0.25rem;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 0.625rem 0.75rem;
+            font-size: 0.95rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            outline: none;
+            background: #ffffff;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+
+        button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--primary);
+            color: #ffffff;
+            font-size: 0.95rem;
+            font-weight: 500;
+            padding: 0.625rem 1.25rem;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        button.btn-secondary {
+            background-color: #64748b;
+        }
+
+        button.btn-secondary:hover {
+            background-color: #475569;
+        }
+
+        button.btn-outline {
+            background-color: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+            width: auto;
+            padding: 0.4rem 0.8rem;
+            font-size: 0.85rem;
+        }
+
+        button.btn-outline:hover {
+            background-color: #f1f5f9;
+            color: var(--text-main);
+        }
+
+        .output-card {
+            position: sticky;
+            top: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 8rem);
+            min-height: 500px;
+        }
+
+        .output-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .output-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .status-badge {
+            display: inline-block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.2rem 0.5rem;
+            border-radius: 0.25rem;
+            background: #e2e8f0;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .status-badge.pending { background: #fef3c7; color: #b45309; }
+        .status-badge.running { background: #e0f2fe; color: #0369a1; }
+        .status-badge.completed { background: #d1fae5; color: #047857; }
+        .status-badge.failed { background: #fee2e2; color: #b91c1c; }
+
+        .output-field {
+            flex: 1;
+            width: 100%;
+            padding: 1rem;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 0.875rem;
+            line-height: 1.45;
+            background: #0f172a;
+            color: #f8fafc;
+            border: 1px solid #1e293b;
+            border-radius: 0.5rem;
+            resize: none;
+            outline: none;
+            white-space: pre;
+            overflow-wrap: normal;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Message Queue Dashboard</h1>
+            <p>Enqueue asynchronous tasks and monitor execution results</p>
+        </header>
+
+        <div class="layout">
+            <!-- Left Column: Forms -->
+            <div class="forms-column">
+                
+                <!-- Sleep Job Form -->
+                <div class="card">
+                    <h2>⏳ Sleep Job</h2>
+                    <form id="sleepJobRequest" onsubmit="event.preventDefault(); return false;">
+                        <div class="form-group">
+                            <label for="second">Duration (seconds, 0 - 300):</label>
+                            <input type="number" id="second" min="0" max="300" step="1" value="5" required>
+                        </div>
+                        <button type="submit">Enqueue Sleep Job</button>
+                    </form>
+                </div>
+
+                <!-- Calculation Job Form -->
+                <div class="card">
+                    <h2>🧮 Calculation Job</h2>
+                    <form id="calculationJobRequest" onsubmit="event.preventDefault(); return false;">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="calcFirst">First Number:</label>
+                                <input type="number" id="calcFirst" value="10" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="calcOperator">Operator:</label>
+                                <select id="calcOperator" required>
+                                    <option value="+">+ (Addition)</option>
+                                    <option value="-">- (Subtraction)</option>
+                                    <option value="*">* (Multiplication)</option>
+                                    <option value="/">/ (Division)</option>
+                                    <option value="//">// (Integer Division)</option>
+                                    <option value="**">** (Exponentiation, power 0-8)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="calcSecond">Second Number:</label>
+                            <input type="number" id="calcSecond" value="20" required>
+                        </div>
+                        <button type="submit">Enqueue Calculation Job</button>
+                    </form>
+                </div>
+
+                <!-- Image Job Form -->
+                <div class="card">
+                    <h2>🖼️ Image Compression Job</h2>
+                    <form id="imageJobRequest" onsubmit="event.preventDefault(); return false;">
+                        <div class="form-group">
+                            <label for="imagePath">Image Filename (in assets/image/):</label>
+                            <input type="text" id="imagePath" list="sampleImages" value="image1.png" placeholder="e.g. image1.png" required>
+                            <datalist id="sampleImages">
+                                <option value="image1.png">
+                                <option value="image2.png">
+                                <option value="image3.png">
+                                <option value="image4.png">
+                            </datalist>
+                        </div>
+                        <div class="form-group">
+                            <label for="imageOperation">Operation:</label>
+                            <input type="text" id="imageOperation" value="compress" required>
+                        </div>
+                        <button type="submit">Enqueue Image Job</button>
+                    </form>
+                </div>
+
+                <!-- Inspect / Get Job Form -->
+                <div class="card">
+                    <h2>🔍 Inspect Jobs</h2>
+                    <form id="getJobRequest" onsubmit="event.preventDefault(); return false;" style="margin-bottom: 0.75rem;">
+                        <div class="form-group">
+                            <label for="inspectJobId">Job ID:</label>
+                            <input type="text" id="inspectJobId" placeholder="e.g. 26010bf6-655f-43fe-9fd4-bfd315a6efb0">
+                        </div>
+                        <button type="submit" class="btn-secondary">Fetch Job by ID</button>
+                    </form>
+                    <button type="button" id="getAllJobsBtn" class="btn-outline" style="width: 100%;">Fetch All Jobs (GET /jobs)</button>
+                </div>
+
+            </div>
+
+            <!-- Right Column: Received Output Textfield -->
+            <div class="card output-card">
+                <div class="output-header">
+                    <h2>📥 Received Output</h2>
+                    <div class="output-actions">
+                        <button type="button" id="clearBtn" class="btn-outline">Clear</button>
+                    </div>
+                </div>
+                <div>
+                    <span id="statusBadge" class="status-badge">Idle</span>
+                </div>
+                <textarea id="outputField" class="output-field" readonly placeholder="Output from API responses and completed jobs will appear here..."></textarea>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = "http://localhost:8000/api/jobs";
+
+        // UI Elements
+        const outputField = document.querySelector("#outputField");
+        const statusBadge = document.querySelector("#statusBadge");
+        const clearBtn = document.querySelector("#clearBtn");
+
+        // Forms
+        const sleepForm = document.querySelector("#sleepJobRequest");
+        const calcForm = document.querySelector("#calculationJobRequest");
+        const imageForm = document.querySelector("#imageJobRequest");
+        const getJobForm = document.querySelector("#getJobRequest");
+        const getAllJobsBtn = document.querySelector("#getAllJobsBtn");
+
+        // Active polling controller
+        let activePollId = null;
+
+        function setStatus(text, type = "") {
+            statusBadge.textContent = text;
+            statusBadge.className = `status-badge ${type}`;
+        }
+
+        function setOutput(content) {
+            if (typeof content === "object") {
+                outputField.value = JSON.stringify(content, null, 2);
+            } else {
+                outputField.value = content;
+            }
+        }
+
+        clearBtn.addEventListener("click", () => {
+            activePollId = null;
+            outputField.value = "";
+            setStatus("Idle");
+        });
+
+        // Generic Job Poster
+        async function submitJob(payloadBody) {
+            activePollId = null; // stop any ongoing polling
+            setStatus("Submitting...", "pending");
+            outputField.value = "Sending request to " + API_BASE_URL + "...\n";
+
+            try {
+                const response = await fetch(API_BASE_URL, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(payloadBody)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => null);
+                    const errorMsg = errorData ? JSON.stringify(errorData, null, 2) : `HTTP ${response.status}: ${response.statusText}`;
+                    setStatus("Error", "failed");
+                    outputField.value = `[Request Failed]\n${errorMsg}`;
+                    return null;
+                }
+
+                const createdJob = await response.json();
+                setOutput(createdJob);
+                setStatus(`Job ${createdJob.status.toUpperCase()} (${createdJob.id.slice(0, 8)}...)`, createdJob.status);
+
+                // Automatically poll for result if the job is pending or running
+                if (createdJob.status === "pending" || createdJob.status === "running") {
+                    pollJob(createdJob.id);
+                }
+
+                return createdJob;
+            } catch (err) {
+                setStatus("Network Error", "failed");
+                outputField.value = `[Network Error]\nCould not connect to ${API_BASE_URL}.\nDetails: ${err.message}`;
+                return null;
+            }
+        }
+
+        // Poll job until completed or failed
+        async function pollJob(jobId, maxAttempts = 30) {
+            activePollId = jobId;
+
+            for (let i = 0; i < maxAttempts; i++) {
+                if (activePollId !== jobId) return; // cancelled or another job enqueued
+
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                if (activePollId !== jobId) return;
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/${jobId}`);
+                    if (!response.ok) continue;
+
+                    const job = await response.json();
+                    setOutput(job);
+                    setStatus(`Job ${job.status.toUpperCase()} (${job.id.slice(0, 8)}...)`, job.status);
+
+                    if (job.status === "completed" || job.status === "failed") {
+                        return job;
+                    }
+                } catch (error) {
+                    console.error("Polling error:", error);
+                }
+            }
+        }
+
+        // 1. Sleep Job Submission
+        sleepForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const seconds = Number(document.querySelector("#second").value);
+
+            await submitJob({
+                type: "sleep",
+                payload: {
+                    seconds: seconds
+                }
+            });
+        });
+
+        // 2. Calculation Job Submission
+        calcForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const first = Number(document.querySelector("#calcFirst").value);
+            const second = Number(document.querySelector("#calcSecond").value);
+            const operator = document.querySelector("#calcOperator").value;
+
+            await submitJob({
+                type: "calculation",
+                payload: {
+                    first: first,
+                    second: second,
+                    operator: operator
+                }
+            });
+        });
+
+        // 3. Image Job Submission
+        imageForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const imagePath = document.querySelector("#imagePath").value.trim();
+            const operation = document.querySelector("#imageOperation").value.trim() || "compress";
+
+            await submitJob({
+                type: "image",
+                payload: {
+                    image_path: imagePath,
+                    operation: operation
+                }
+            });
+        });
+
+        // 4. Inspect Job by ID (GET /jobs/{id})
+        getJobForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            activePollId = null;
+            const jobId = document.querySelector("#inspectJobId").value.trim();
+            if (!jobId) return;
+
+            setStatus("Fetching...", "pending");
+            outputField.value = `Fetching job ${jobId}...\n`;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/${jobId}`);
+                if (!response.ok) {
+                    const err = await response.json().catch(() => null);
+                    const errorMsg = err ? JSON.stringify(err, null, 2) : `HTTP ${response.status}: ${response.statusText}`;
+                    setStatus("Not Found / Error", "failed");
+                    outputField.value = `[Fetch Failed]\n${errorMsg}`;
+                    return;
+                }
+                const job = await response.json();
+                setOutput(job);
+                setStatus(`Job ${job.status.toUpperCase()}`, job.status);
+            } catch (err) {
+                setStatus("Network Error", "failed");
+                outputField.value = `[Error]\n${err.message}`;
+            }
+        });
+
+        // 5. Fetch All Jobs (GET /jobs)
+        getAllJobsBtn.addEventListener("click", async () => {
+            activePollId = null;
+            setStatus("Fetching all jobs...", "pending");
+            outputField.value = "Fetching all jobs from GET /api/jobs...\n";
+
+            try {
+                const response = await fetch(API_BASE_URL);
+                if (!response.ok) {
+                    const err = await response.json().catch(() => null);
+                    const errorMsg = err ? JSON.stringify(err, null, 2) : `HTTP ${response.status}: ${response.statusText}`;
+                    setStatus("Error", "failed");
+                    outputField.value = `[Fetch Failed]\n${errorMsg}`;
+                    return;
+                }
+                const jobs = await response.json();
+                setOutput(jobs);
+                setStatus(`Loaded ${jobs.length} jobs`, "completed");
+            } catch (err) {
+                setStatus("Network Error", "failed");
+                outputField.value = `[Error]\n${err.message}`;
+            }
+        });
+    </script>
+</body>
+</html>
+

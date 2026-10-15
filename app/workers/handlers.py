@@ -11,6 +11,7 @@ ROOT_DIR = Path(os.getenv("ROOT_DIR"))
 ASSETS_DIR = Path(os.getenv("ASSETS_DIR"))
 IMG_DIR = Path(os.getenv("IMG_DIR"))
 IMG_OUTPUT_DIR = Path(os.getenv("IMG_OUTPUT_DIR"))
+IMG_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 DESIRED_QUALITY = [2, 25, 50, 75]
 

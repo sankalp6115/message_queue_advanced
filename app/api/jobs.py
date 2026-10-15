@@ -30,3 +30,4 @@ def get_job(job_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Job not found")
 
     return to_job_response(job)
+
