@@ -6,11 +6,13 @@ from dotenv import load_dotenv
 import os
 
 # constants
-load_dotenv("./app/.env")
-ROOT_DIR = Path(os.getenv("ROOT_DIR"))
-ASSETS_DIR = Path(os.getenv("ASSETS_DIR"))
-IMG_DIR = Path(os.getenv("IMG_DIR"))
-IMG_OUTPUT_DIR = Path(os.getenv("IMG_OUTPUT_DIR"))
+BASE_DIR = Path(__file__).resolve().parents[2]
+load_dotenv(BASE_DIR / "app" / ".env")
+ROOT_DIR = Path(os.getenv("ROOT_DIR", BASE_DIR))
+ASSETS_DIR = Path(os.getenv("ASSETS_DIR", ROOT_DIR / "assets"))
+IMG_DIR = Path(os.getenv("IMG_DIR", ASSETS_DIR / "image"))
+IMG_OUTPUT_DIR = Path(os.getenv("IMG_OUTPUT_DIR", ASSETS_DIR / "output_images"))
+IMG_DIR.mkdir(parents=True, exist_ok=True)
 IMG_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 DESIRED_QUALITY = [2, 25, 50, 75]
@@ -82,21 +84,26 @@ def sleep_handler(seconds:str):
 def image_handler(image_path):
     result = []
 
-    image_path = IMG_DIR / image_path
-    print(image_path)
+    image_file = IMG_DIR / image_path
+    print(f"Processing image: {image_file}")
     try:
-        with Image.open(image_path) as img:
+        with Image.open(image_file) as img:
             img = img.convert("RGB")
+            ext = Path(image_path).suffix or ".jpg"
             for quality in DESIRED_QUALITY:
-                img_output = IMG_OUTPUT_DIR / f"{Path(image_path).stem}_{quality}.jpg"
-                img.save(img_output, "JPEG", quality=quality, optimize=True)
+                img_output = IMG_OUTPUT_DIR / f"{Path(image_path).stem}_{quality}{ext}"
+                if ext.lower() == ".webp":
+                    img.save(img_output, "WEBP", quality=quality)
+                else:
+                    img.save(img_output, "JPEG", quality=quality, optimize=True)
 
                 result.append({
                     "quality": quality,
                     "path": str(img_output)
                 })
-    except:
-        raise FileNotFoundError
+    except Exception as e:
+        print(f"Error processing image {image_file}: {e}")
+        raise
 
     return json.dumps(result)
     

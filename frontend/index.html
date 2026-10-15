@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -198,10 +199,25 @@
             margin-bottom: 0.5rem;
         }
 
-        .status-badge.pending { background: #fef3c7; color: #b45309; }
-        .status-badge.running { background: #e0f2fe; color: #0369a1; }
-        .status-badge.completed { background: #d1fae5; color: #047857; }
-        .status-badge.failed { background: #fee2e2; color: #b91c1c; }
+        .status-badge.pending {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .status-badge.running {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+
+        .status-badge.completed {
+            background: #d1fae5;
+            color: #047857;
+        }
+
+        .status-badge.failed {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
 
         .output-field {
             flex: 1;
@@ -222,6 +238,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <header>
@@ -232,7 +249,7 @@
         <div class="layout">
             <!-- Left Column: Forms -->
             <div class="forms-column">
-                
+
                 <!-- Sleep Job Form -->
                 <div class="card">
                     <h2>⏳ Sleep Job</h2>
@@ -280,7 +297,8 @@
                     <form id="imageJobRequest" onsubmit="event.preventDefault(); return false;">
                         <div class="form-group">
                             <label for="imagePath">Image Filename (in assets/image/):</label>
-                            <input type="text" id="imagePath" list="sampleImages" value="image1.png" placeholder="e.g. image1.png" required>
+                            <input type="text" id="imagePath" list="sampleImages" value="image1.png"
+                                placeholder="e.g. image1.png" required>
                             <datalist id="sampleImages">
                                 <option value="image1.png">
                                 <option value="image2.png">
@@ -296,17 +314,32 @@
                     </form>
                 </div>
 
+                <!-- Upload & Compress Image Form -->
+                <div class="card">
+                    <h2>📤 Upload & Compress Image</h2>
+                    <form id="uploadImageForm" onsubmit="event.preventDefault(); return false;">
+                        <div class="form-group">
+                            <label for="uploadFileInput">Choose Image File (JPG, PNG, WEBP, etc.):</label>
+                            <input type="file" id="uploadFileInput" accept="image/*" required>
+                        </div>
+                        <button type="submit">Upload & Enqueue Compression Job</button>
+                    </form>
+                </div>
+
                 <!-- Inspect / Get Job Form -->
                 <div class="card">
                     <h2>🔍 Inspect Jobs</h2>
-                    <form id="getJobRequest" onsubmit="event.preventDefault(); return false;" style="margin-bottom: 0.75rem;">
+                    <form id="getJobRequest" onsubmit="event.preventDefault(); return false;"
+                        style="margin-bottom: 0.75rem;">
                         <div class="form-group">
                             <label for="inspectJobId">Job ID:</label>
-                            <input type="text" id="inspectJobId" placeholder="e.g. 26010bf6-655f-43fe-9fd4-bfd315a6efb0">
+                            <input type="text" id="inspectJobId"
+                                placeholder="e.g. 26010bf6-655f-43fe-9fd4-bfd315a6efb0">
                         </div>
                         <button type="submit" class="btn-secondary">Fetch Job by ID</button>
                     </form>
-                    <button type="button" id="getAllJobsBtn" class="btn-outline" style="width: 100%;">Fetch All Jobs (GET /jobs)</button>
+                    <button type="button" id="getAllJobsBtn" class="btn-outline" style="width: 100%;">Fetch All Jobs
+                        (GET /jobs)</button>
                 </div>
 
             </div>
@@ -322,7 +355,8 @@
                 <div>
                     <span id="statusBadge" class="status-badge">Idle</span>
                 </div>
-                <textarea id="outputField" class="output-field" readonly placeholder="Output from API responses and completed jobs will appear here..."></textarea>
+                <textarea id="outputField" class="output-field" readonly
+                    placeholder="Output from API responses and completed jobs will appear here..."></textarea>
             </div>
         </div>
     </div>
@@ -463,7 +497,7 @@
             });
         });
 
-        // 3. Image Job Submission
+        // 3. Image Job Submission (Existing filename)
         imageForm.addEventListener("submit", async (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -477,6 +511,51 @@
                     operation: operation
                 }
             });
+        });
+
+        // 3b. Image File Upload & Compression (POST /api/jobs/upload)
+        const uploadForm = document.querySelector("#uploadImageForm");
+        const uploadFileInput = document.querySelector("#uploadFileInput");
+
+        uploadForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const file = uploadFileInput.files[0];
+            if (!file) return;
+
+            activePollId = null;
+            setStatus("Uploading...", "pending");
+            outputField.value = `Uploading "${file.name}" to ${API_BASE_URL}/upload...\n`;
+
+            const formData = new FormData();
+            formData.append("file", file);
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/upload`, {
+                    method: "POST",
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => null);
+                    const errorMsg = errorData ? JSON.stringify(errorData, null, 2) : `HTTP ${response.status}: ${response.statusText}`;
+                    setStatus("Error", "failed");
+                    outputField.value = `[Upload Failed]\n${errorMsg}`;
+                    return;
+                }
+
+                const createdJob = await response.json();
+                setOutput(createdJob);
+                setStatus(`Job ${createdJob.status.toUpperCase()} (${createdJob.id.slice(0, 8)}...)`, createdJob.status);
+
+                if (createdJob.status === "pending" || createdJob.status === "running") {
+                    pollJob(createdJob.id);
+                }
+            } catch (err) {
+                setStatus("Network Error", "failed");
+                outputField.value = `[Network Error]\nCould not connect to ${API_BASE_URL}/upload.\nDetails: ${err.message}`;
+            }
         });
 
         // 4. Inspect Job by ID (GET /jobs/{id})
@@ -533,5 +612,5 @@
         });
     </script>
 </body>
-</html>
 
+</html>
