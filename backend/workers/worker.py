@@ -1,11 +1,11 @@
 from datetime import datetime, timezone, timedelta
-from app.workers.recovery import recover_stale_jobs
+from backend.workers.recovery import recover_stale_jobs
 import time
 import json
 
-from app.database.database import SessionLocal
-from app.models.model import Job
-from app.workers.handlers import task_executor
+from backend.database.database import SessionLocal
+from backend.models.model import Job
+from backend.workers.handlers import task_executor
 
 def claim_next_job(db:SessionLocal):
     candidate = db.query(Job).filter(Job.status == 'pending').first()

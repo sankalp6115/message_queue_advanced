@@ -1,8 +1,8 @@
 import json
 import uuid
 from sqlalchemy.orm import Session
-from app.models.model import Job
-from app.schemas.schema import JobRequest, JobResponse
+from backend.models.model import Job
+from backend.schemas.schema import JobRequest, JobResponse
 
 import os
 import shutil

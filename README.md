@@ -66,7 +66,7 @@ Using the script:
 
 Or using `uv` directly:
 ```bash
-uv run uvicorn app.main:app --reload
+uv run uvicorn backend.main:app --reload
 ```
 
 The API will be available at `http://localhost:8000`. Interactive OpenAPI documentation is accessible at `http://localhost:8000/docs`.
@@ -82,7 +82,7 @@ Using the script:
 
 Or using `uv` directly:
 ```bash
-uv run python -m app.workers.worker
+uv run python -m backend.workers.worker
 ```
 
 #### 3. Start Multiple Workers

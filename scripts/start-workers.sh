@@ -47,7 +47,7 @@ trap cleanup SIGINT SIGTERM EXIT
 
 for i in $(seq 1 "$NUM_WORKERS"); do
   echo "  -> Starting Worker #$i..."
-  uv run python -m app.workers.worker &
+  uv run python -m backend.workers.worker &
   pids+=($!)
 done
 

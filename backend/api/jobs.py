@@ -2,9 +2,9 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 
-from app.database.session import get_db
-from app.schemas.schema import JobRequest, JobResponse
-from app.services.job_service import (
+from backend.database.session import get_db
+from backend.schemas.schema import JobRequest, JobResponse
+from backend.services.job_service import (
     create_job,
     create_image_job_from_upload,
     get_job_by_id,

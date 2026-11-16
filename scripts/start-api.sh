@@ -20,4 +20,4 @@ HOST="${HOST:-0.0.0.0}"
 PORT="${PORT:-8000}"
 
 echo "Starting PyQueue API server on http://${HOST}:${PORT}..."
-exec uv run uvicorn app.main:app --host "$HOST" --port "$PORT" --reload "$@"
+exec uv run uvicorn backend.main:app --host "$HOST" --port "$PORT" --reload "$@"

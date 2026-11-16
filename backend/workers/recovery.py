@@ -1,6 +1,6 @@
 from datetime import datetime,timezone,timedelta
-from app.database.database import SessionLocal
-from app.models.model import Job
+from backend.database.database import SessionLocal
+from backend.models.model import Job
 
 def recover_stale_jobs():
     db = SessionLocal()

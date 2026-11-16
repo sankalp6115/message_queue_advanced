@@ -135,7 +135,7 @@ A structured, phased roadmap to evolve PyQueue into an advanced, production-grad
 **Goal**: Evolve from a single FIFO queue into a prioritized multi-queue system.
 
 1. Add `queue_name` column (default: `"default"`).
-2. Allow workers to subscribe to specific named queues (e.g., `uv run python -m app.workers.worker --queue images`).
+2. Allow workers to subscribe to specific named queues (e.g., `uv run python -m backend.workers.worker --queue images`).
 3. Add integer `priority` levels (e.g., 1 to 10).
 4. Order job claiming by:
    - `priority DESC`

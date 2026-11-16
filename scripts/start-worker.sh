@@ -19,4 +19,4 @@ fi
 
 WORKER_ID="${1:-1}"
 echo "Starting PyQueue worker #$WORKER_ID..."
-exec uv run python -m app.workers.worker
+exec uv run python -m backend.workers.worker
