@@ -12,8 +12,6 @@ class CalculationPayload(BaseModel):
     second: int = Field(ge=-1_000_000,le=1_000_000)
     operator: Literal["+","-","*","/","//","**"]
 
-
-    # model validator used for custom validation logic for a complete model
     @model_validator(mode="after")
     def validate_exponent(self):
         if self.operator == "**" and not 0 <= self.second <= 8:

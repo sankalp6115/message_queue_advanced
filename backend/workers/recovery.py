@@ -4,8 +4,7 @@ from app.models.model import Job
 
 def recover_stale_jobs():
     db = SessionLocal()
-    
-    # Sleep jobs are limited to five minutes. A ten-minute timeout keeps this
+
     # recovery mechanism safe for the supported local job types.
     cutoff_time = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=60)
     

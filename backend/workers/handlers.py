@@ -15,13 +15,7 @@ IMG_OUTPUT_DIR = Path(os.getenv("IMG_OUTPUT_DIR", ASSETS_DIR / "output_images"))
 IMG_DIR.mkdir(parents=True, exist_ok=True)
 IMG_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-DESIRED_QUALITY = [2, 25, 50, 75]
-
-
-# ROOT_DIR = Path(__file__).resolve().parent.parent.parent
-# IMG_DIR = ROOT_DIR / "assets" / "image"
-# IMG_OUTPUT_DIR = ROOT_DIR / "assets" / "output_images"
-# IMG_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+DESIRED_QUALITY = [25, 50, 75, 90]
 
 # task executor
 def task_executor(job,payload):

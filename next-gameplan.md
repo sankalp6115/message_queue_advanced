@@ -1,199 +1,183 @@
-## fixes + extensions
-worker launch path in multiprocessing.sh
-backoff
+# PyQueue: Next Gameplan & Roadmap
 
-Here’s a strong, portfolio-ready roadmap. Build it in this order—each phase leaves you with a working system and teaches one real backend concept.
+A structured, phased roadmap to evolve PyQueue into an advanced, production-grade distributed task queue. Each phase builds upon the previous one to reinforce key distributed systems and backend engineering principles.
 
-## Phase 0 — Clean project foundation
+---
 
-Goal: make the project easy to run, test, and extend.
+## Active & Upcoming Fixes
 
-1. Restructure into clear modules:
-   - `app/api/`
-   - `app/services/`
-   - `app/workers/`
-   - `app/models/`
-   - `tests/`
-2. Run the worker as a module: `python -m app.worker.worker`.
-3. Add environment-based configuration for database URL, polling interval, lease duration, and retry limits.
-4. Add Dockerfile and Docker Compose with separate `api` and `worker` services.
-5. Add Ruff/Black and Pytest.
+- [x] Standardize worker launch scripts in `scripts/start-workers.sh` with argument-based concurrency.
+- [ ] Implement exponential backoff and jitter for worker polling and retry scheduling.
+- [ ] Transition from static recovery timeout to worker heartbeats and leases.
 
-Done when: a new developer can run the API and worker with one documented command, and tests run in CI.
+---
 
-## Phase 1 — Strong job model and API
+## Phase 0: Clean Project Foundation
 
-Goal: make invalid jobs impossible to enqueue.
+**Goal**: Make the project frictionless to run, test, and extend.
 
-1. Replace generic `type: str` and `payload: dict` with validated Pydantic job schemas.
-2. Support explicit task types:
-   - `sleep`
-   - `calculation`
-3. Validate payload constraints:
-   - sleep duration range;
-   - allowed arithmetic operators;
-   - safe number/exponent bounds.
-4. Add response models so you never return raw ORM objects directly.
-5. Add API endpoints:
-   - `POST /jobs`
-   - `GET /jobs/{job_id}`
-   - `GET /jobs?status=&limit=&cursor=`
-   - `POST /jobs/{job_id}/cancel`
+1. Structure into modular layers:
+   - `app/api/`: Request validation, routing, HTTP controllers.
+   - `app/services/`: Core business logic and database interactions.
+   - `app/workers/`: Worker process, dispatchers, handlers, and recovery.
+   - `app/models/`: SQLAlchemy ORM definitions.
+   - `app/schemas/`: Pydantic input/output schemas.
+   - `tests/`: Automated unit and integration tests.
+2. Standardize CLI execution scripts (`scripts/start-api.sh`, `scripts/start-worker.sh`, `scripts/start-workers.sh`).
+3. Add environment configuration (`.env`) for DB URL, polling interval, and recovery timeouts.
+4. Containerize with `Dockerfile` and `docker-compose.yml` for unified execution.
+5. Add code quality tooling (Ruff / Black / Pytest).
 
-Done when: unsupported job types or malformed payloads return a useful `422` error before entering the queue.
+> **Done When**: A new developer can clone the repo, run a single startup command, and run passing tests out of the box.
 
-## Phase 2 — Correct state machine and atomic claiming
+---
 
-Goal: make job transitions explicit and safe.
+## Phase 1: Strong Job Model and API Validation
 
-1. Define allowed transitions:
+**Goal**: Make invalid jobs impossible to enqueue.
 
-```text
-pending → running → completed
-pending → running → failed
-pending → cancelled
-running → pending     (lease expired / retry)
-running → failed
-```
+1. Implement strongly typed Pydantic models with discriminator tags (`type`).
+2. Supported task types:
+   - `sleep`: Pause execution.
+   - `calculation`: Arithmetic expressions.
+   - `image`: Image resizing and compression.
+3. Validate payload boundaries:
+   - Constrain sleep durations (`0 <= seconds <= 300`).
+   - Allowlist math operators (`+`, `-`, `*`, `/`, `//`, `**`).
+   - Bound numeric magnitudes and exponent values to prevent Denial of Service (DoS).
+4. Separate internal ORM entities from client-facing `JobResponse` schemas.
+5. Provide query filtering on `GET /api/jobs?status=...&limit=...`.
 
-2. Add database fields:
-   - `attempts`
-   - `max_attempts`
-   - `available_at`
-   - `started_at`
-   - `completed_at`
-   - `failed_at`
+> **Done When**: Unsupported job types or invalid payloads return informative `422 Unprocessable Entity` responses prior to database insertion.
+
+---
+
+## Phase 2: State Machine and Atomic Claiming
+
+**Goal**: Make state transitions explicit, predictable, and concurrency-safe.
+
+1. Formally define lifecycle state transitions:
+   ```text
+   pending  ───> running ───> completed
+      │            │
+      │            └───> failed
+      │            │
+      │            └───> pending (lease expired / retry)
+      └───> cancelled
+   ```
+2. Extend database schema:
+   - `attempts` / `max_attempts`
+   - `available_at` (for delayed jobs and retry backoff)
+   - `started_at`, `completed_at`, `failed_at`
    - `worker_id`
    - `lease_expires_at`
-3. Add indexes for job fetching:
+3. Add composite indexes for efficient querying:
    - `(status, available_at, created_at)`
    - `(lease_expires_at)`
-4. Claim jobs with an atomic database update, not a read-then-unprotected-write pattern.
+4. Claim jobs atomically using conditional `UPDATE ... WHERE status = 'pending'` transactions to eliminate race conditions.
 
-Done when: four workers can process many jobs without one job being claimed twice.
+> **Done When**: Multiple concurrent workers process a high volume of queued jobs without duplicate claims or double execution.
 
-## Phase 3 — Leases, heartbeats, and crash recovery
+---
 
-Goal: safely recover from worker crashes without duplicating healthy long jobs.
+## Phase 3: Leases, Heartbeats, and Crash Recovery
 
-1. Generate a unique `worker_id` at worker startup.
-2. When claiming a job:
-   - set `status=running`;
-   - record `worker_id`;
-   - set `lease_expires_at`.
-3. During execution, heartbeat periodically to extend the lease.
-4. Requeue only jobs with expired leases.
-5. Require the same `worker_id` when completing/failing a job.
-6. Add a graceful shutdown handler:
-   - stop claiming new jobs;
-   - finish or safely release the current lease.
+**Goal**: Safely recover from worker crashes without terminating or re-running healthy long-running jobs.
 
-Done when: killing a worker mid-task causes the job to be retried, while a long healthy task is never mistakenly requeued.
+1. Generate a unique `worker_id` (e.g., UUID or hostname + PID) when each worker boots.
+2. On claiming a job:
+   - Transition status to `running`.
+   - Assign `worker_id`.
+   - Set initial `lease_expires_at` (e.g., 30 seconds ahead).
+3. Background heartbeat thread in worker periodically renews `lease_expires_at` while the job is active.
+4. Recovery process reclaims only jobs where `status = 'running'` AND `lease_expires_at < CURRENT_TIMESTAMP`.
+5. Require matching `worker_id` when marking a job `completed` or `failed`.
+6. Graceful shutdown handler: intercepts `SIGINT`/`SIGTERM` to safely finish active work or release leases before termination.
 
-## Phase 4 — Retries and dead-letter jobs
+> **Done When**: Forcefully killing a worker mid-execution safely returns its job to `pending`, while legitimate long-running jobs continue uninterrupted.
 
-Goal: handle real-world transient failures.
+---
 
-1. Classify errors:
-   - retryable: timeout, temporary external service failure;
-   - permanent: invalid input, unsupported operation.
-2. On retryable failure:
-   - increment `attempts`;
-   - calculate exponential backoff;
-   - add random jitter;
-   - set `available_at` in the future;
-   - return job to `pending`.
-3. When `attempts >= max_attempts`, mark the job `dead_letter`.
-4. Add endpoints:
-   - `GET /jobs?status=dead_letter`
-   - `POST /jobs/{job_id}/retry`
-5. Store error type, message, and traceback safely.
+## Phase 4: Retries and Dead-Letter Queue (DLQ)
 
-Done when: a failing task retries predictably and ends in a visible dead-letter state instead of endlessly cycling.
+**Goal**: Robustly handle transient failures without infinite failure loops.
 
-## Phase 5 — Idempotency and delivery guarantees
+1. Categorize errors into transient (retryable) vs permanent (non-retryable):
+   - **Transient**: Network glitch, file system lock contention.
+   - **Permanent**: Validation failure, unsupported parameters, division by zero.
+2. Implement exponential backoff with jitter:
+   $$\text{backoff} = \min(\text{max\_backoff}, \text{base} \times 2^{\text{attempts}}) \pm \text{jitter}$$
+3. Return failed retryable jobs to `pending` with `available_at` set into the future.
+4. When `attempts >= max_attempts`, mark status as `dead_letter` (DLQ).
+5. Endpoints:
+   - `GET /api/jobs?status=dead_letter`
+   - `POST /api/jobs/{id}/retry` (manual retry trigger from DLQ)
 
-Goal: make duplicate delivery safe.
+> **Done When**: Transient errors automatically retry with backoff and permanently failing jobs cleanly land in DLQ.
 
-1. Add an optional `idempotency_key` to `POST /jobs`.
-2. Enforce a unique constraint for the key per queue/task type.
-3. Return the original job if the client repeats a submission.
-4. Document the guarantee correctly: **at-least-once delivery**.
-5. Design handlers to be idempotent—for example, “send an email for order X” should record that order X was already processed.
+---
 
-Done when: network retries from producers do not enqueue duplicate work, and a retried worker task cannot cause harmful duplicate side effects.
+## Phase 5: Idempotency and Delivery Guarantees
 
-## Phase 6 — Queues, routing, priority, and scheduling
+**Goal**: Guarantee at-least-once delivery while protecting against duplicate processing side effects.
 
-Goal: evolve from one task table into a flexible queue platform.
+1. Accept an optional `idempotency_key` on `POST /api/jobs`.
+2. Enforce uniqueness per idempotency key to prevent duplicate job creation upon client retries.
+3. Return the original existing job if duplicate requests are received.
+4. Ensure task handlers are idempotent (e.g., deterministic file output names, checking prior state before mutations).
 
-1. Add `queue_name` to jobs.
-2. Let workers subscribe to one or more queues.
-3. Add priority (`0–10`, for example).
-4. Fetch jobs by:
-   - available time;
-   - priority;
-   - creation time.
-5. Support delayed jobs using `available_at`.
-6. Add queue-level concurrency/rate limits.
+> **Done When**: Client network retries cannot cause redundant job execution.
 
-Done when: email, image-processing, and payment queues can be consumed independently without starving each other.
+---
 
-## Phase 7 — PostgreSQL migration
+## Phase 6: Named Queues, Priority, and Scheduling
 
-Goal: support actual multi-worker workload safely.
+**Goal**: Evolve from a single FIFO queue into a prioritized multi-queue system.
 
-1. Add Alembic migrations.
-2. Move from SQLite to PostgreSQL.
-3. Use row locking such as `FOR UPDATE SKIP LOCKED` for high-concurrency job claiming.
-4. Keep SQLite as a local development option if desired.
-5. Test with multiple API instances and multiple workers.
+1. Add `queue_name` column (default: `"default"`).
+2. Allow workers to subscribe to specific named queues (e.g., `uv run python -m app.workers.worker --queue images`).
+3. Add integer `priority` levels (e.g., 1 to 10).
+4. Order job claiming by:
+   - `priority DESC`
+   - `created_at ASC`
+5. Support scheduled delayed execution (`POST /api/jobs` with `run_at` timestamp).
 
-Done when: multiple workers and API replicas can run safely against one shared database.
+> **Done When**: Heavy image processing tasks do not block critical fast-path calculation or notification jobs.
 
-## Phase 8 — Observability and operations
+---
 
-Goal: make it operable like a real backend service.
+## Phase 7: PostgreSQL Migration & High Concurrency
 
-1. Add structured JSON logs with:
-   - `job_id`
-   - `worker_id`
-   - queue name
-   - attempt number
-   - duration
-2. Add health endpoints:
-   - `/health`
-   - `/ready`
-3. Add Prometheus-style metrics:
-   - pending jobs;
-   - jobs processed;
-   - failures;
-   - retries;
-   - queue latency;
-   - execution duration.
-4. Add request/job correlation IDs.
-5. Create a simple dashboard endpoint for queue stats.
+**Goal**: Scale horizontally across multiple nodes with row-level locking.
 
-Done when: you can quickly answer “is the queue stuck, slow, or failing?”
+1. Integrate Alembic for database migrations.
+2. Support PostgreSQL connection pool.
+3. Replace SQLite table locking with `SELECT ... FOR UPDATE SKIP LOCKED` for lock-free parallel job claiming across dozens of worker nodes.
+4. Keep SQLite as an optional local development driver.
 
-## Phase 9 — Security and production polish
+> **Done When**: Multiple distributed API replicas and worker nodes operate concurrently against PostgreSQL without lock contention.
 
-Goal: make the project deployment-ready.
+---
 
-1. Add API-key or JWT authentication for job submission and inspection.
-2. Add per-client rate limits and payload size limits.
-3. Sanitize errors returned through the API.
-4. Add retention and cleanup policies for completed jobs.
-5. Add CI:
-   - formatting;
-   - unit tests;
-   - integration tests;
-   - Docker build.
+## Phase 8: Observability and Operations
 
-Done when: the project has a clean README, architecture diagram, test suite, CI, deployment instructions, and documented limits.
+**Goal**: Gain full operational visibility into queue health and throughput.
 
-## Best “next implementation” choice
+1. Implement structured JSON logging:
+   - `trace_id`, `job_id`, `worker_id`, `queue_name`, `attempt`, `duration_ms`.
+2. Health and readiness endpoints:
+   - `GET /health` (liveness probe)
+   - `GET /ready` (database connectivity probe)
+3. Prometheus metrics:
+   - `jobs_enqueued_total`
+   - `jobs_completed_total`
+   - `jobs_failed_total`
+   - `job_execution_duration_seconds` (histogram)
+   - `queue_depth` (gauge)
+4. Expose operational dashboard summarizing current queue velocity.
 
-Start with **Phase 3: leases and heartbeats**. It fixes the most important reliability flaw in the current project: a long-running task can currently be considered stale and executed again by another worker.
+---
 
-After that, implement Phase 4 retries/dead-letter jobs. Together, those two features make this feel like a genuine backend queue rather than a basic background-task demo.
+## Recommended Next Step
+
+Begin with **Phase 3 (Leases & Heartbeats)**. It eliminates the limitation where tasks longer than the recovery window risk duplicate execution by another worker. Follow with **Phase 4 (Retries & Dead-Letter Queue)** for production-level resilience.

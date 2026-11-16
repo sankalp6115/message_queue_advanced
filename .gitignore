@@ -1,7 +1,14 @@
 .DS_Store
 *.db
-__pycache__
-*.env
-.env.*
+.env
+.venv
+*cache*
 .vscode
+
 *.png
+*.jpg
+*.jpeg
+!assets/image/.gitkeep
+!assets/output_images/.gitkeep
+
+tests
